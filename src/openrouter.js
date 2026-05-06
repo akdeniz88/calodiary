@@ -97,8 +97,19 @@ export async function analyzeFood(imageBase64, mimeType, systemPrompt, caption =
     return isNaN(n) ? 0 : Math.round(n * 10) / 10;
   }
 
+  const items = Array.isArray(parsed.items)
+    ? parsed.items.map((item) => ({
+        name: String(item.name || ""),
+        calories: toNum(item.calories),
+        protein: toNum(item.protein),
+        fat: toNum(item.fat),
+        carbs: toNum(item.carbs),
+      }))
+    : [];
+
   return {
     meal_name: String(parsed.meal_name),
+    items,
     calories: toNum(parsed.calories),
     protein: toNum(parsed.protein),
     fat: toNum(parsed.fat),

@@ -146,24 +146,55 @@ function buildMealReply(nutrition, mealDensity, totals) {
     config.dailyCalorieCeiling + totals.totalBurned
   );
 
-  return [
-    `<b>🍽 MEAL LOGGED</b>`,
-    `<code>${escapeHtml(nutrition.meal_name)}</code>`,
-    `Calories: <b>${nutrition.calories}</b> kcal  |  P: <b>${nutrition.protein}g</b>  |  F: ${nutrition.fat}g  |  C: ${nutrition.carbs}g`,
+  // Per-item breakdown
+  const itemLines = (nutrition.items || []).map((item) => {
+    const parts = [`${item.calories} kcal`];
+    if (item.protein) parts.push(`${item.protein}g Protein`);
+    if (item.fat)     parts.push(`${item.fat}g Fat`);
+    if (item.carbs)   parts.push(`${item.carbs}g Carbs`);
+    return `<b>${escapeHtml(item.name)}</b>\n${parts.join("  |  ")}`;
+  });
+
+  // Critique: split "Title: body\n\nTitle2: body2" into bold-titled paragraphs
+  const critiqueSections = nutrition.critique
+    .split(/\n\n+/)
+    .map((section) => {
+      const colonIdx = section.indexOf(":");
+      if (colonIdx > 0 && colonIdx < 40) {
+        const label = section.slice(0, colonIdx).trim();
+        const body  = section.slice(colonIdx + 1).trim();
+        return `<b>${escapeHtml(label)}</b>\n${escapeHtml(body)}`;
+      }
+      return escapeHtml(section);
+    });
+
+  const lines = [
+    `<b>Logged: ${escapeHtml(nutrition.meal_name)}</b>`,
+    ``,
+  ];
+
+  if (itemLines.length > 0) {
+    lines.push(`<b>Meal Breakdown</b>`);
+    lines.push(...itemLines.map((l) => `${l}`));
+    lines.push(``);
+  }
+
+  lines.push(
+    `<b>Total Meal</b>`,
+    `${nutrition.calories} kcal  |  P: <b>${nutrition.protein}g</b>  |  F: ${nutrition.fat}g  |  C: ${nutrition.carbs}g`,
     `Density: <b>${mealDensity}g/100kcal</b>`,
     ``,
-    `<b>📊 TODAY</b>`,
+    `<b>📊 Today</b>`,
     `Calories  ${calBar}  ${totals.totalCalories}/${config.dailyCalorieCeiling + totals.totalBurned} kcal`,
     `Protein   ${proteinBar}  ${totals.totalProtein}/${config.dailyProteinFloor} g`,
-    totals.totalBurned > 0 ? `Burned:   +${totals.totalBurned} kcal` : null,
+    totals.totalBurned > 0 ? `Burned: +${totals.totalBurned} kcal` : null,
     `Remaining: <b>${totals.remainingCalories} kcal</b>  |  <b>${totals.remainingProtein}g protein</b>`,
-    `Required density: <b>${totals.requiredDensity}g/100kcal</b>`,
     ``,
-    `<b>⚠ CRITIQUE</b>`,
-    `<i>${escapeHtml(nutrition.critique)}</i>`,
-  ]
-    .filter((l) => l !== null)
-    .join("\n");
+    `<b>Critique</b>`,
+    ...critiqueSections,
+  );
+
+  return lines.filter((l) => l !== null).join("\n");
 }
 
 function buildProgressBar(current, max) {
