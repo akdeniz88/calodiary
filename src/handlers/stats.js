@@ -79,6 +79,12 @@ function buildProgressBar(current, max) {
   return `[${"█".repeat(filled)}${"░".repeat(10 - filled)}]`;
 }
 
+function toOsloTime(pbDate) {
+  // PocketBase stores dates as "YYYY-MM-DD HH:MM:SS" in UTC
+  const utc = new Date(pbDate.replace(" ", "T") + "Z");
+  return utc.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Oslo" });
+}
+
 /**
  * Handles /log — lists every meal and activity logged today in order.
  */
@@ -107,7 +113,7 @@ export async function logHandler(ctx) {
     if (foodResult.items.length > 0) {
       lines.push(`<b>MEALS</b>`);
       foodResult.items.forEach((m, i) => {
-        const time = m.date.slice(11, 16); // "HH:MM"
+        const time = toOsloTime(m.date);
         lines.push(
           `${i + 1}. <b>${escapeHtml(m.meal_name)}</b> <i>${time}</i>`,
           `   ${m.calories} kcal  |  P: ${m.protein}g  |  F: ${m.fat}g  |  C: ${m.carbs}g`
@@ -119,7 +125,7 @@ export async function logHandler(ctx) {
     if (activityResult.items.length > 0) {
       lines.push(`<b>ACTIVITIES</b>`);
       activityResult.items.forEach((a, i) => {
-        const time = a.date.slice(11, 16);
+        const time = toOsloTime(a.date);
         lines.push(
           `${i + 1}. <b>${escapeHtml(a.type)}</b> <i>${time}</i>`,
           `   ${a.duration_min} min  |  ${a.calories_burned} kcal burned`
