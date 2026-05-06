@@ -1,5 +1,13 @@
 import { config } from "../config.js";
 import { getDailyTotals } from "../math/daily.js";
+import { getDb } from "../pb.js";
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 /**
  * Handles the /stats command.
@@ -71,9 +79,57 @@ function buildProgressBar(current, max) {
   return `[${"█".repeat(filled)}${"░".repeat(10 - filled)}]`;
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+/**
+ * Handles /log — lists every meal and activity logged today in order.
+ */
+export async function logHandler(ctx) {
+  if (ctx.from?.id !== config.allowedUserId) return;
+
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const db = await getDb();
+
+    const [foodResult, activityResult] = await Promise.all([
+      db.collection("food_logs").getList(1, 500, {
+        filter: `date >= "${today} 00:00:00" && date <= "${today} 23:59:59"`,
+      }),
+      db.collection("activities").getList(1, 500, {
+        filter: `date >= "${today} 00:00:00" && date <= "${today} 23:59:59"`,
+      }),
+    ]);
+
+    if (foodResult.items.length === 0 && activityResult.items.length === 0) {
+      return ctx.reply("Nothing logged today yet.");
+    }
+
+    const lines = [`<b>📋 TODAY'S LOG — ${today}</b>`, ``];
+
+    if (foodResult.items.length > 0) {
+      lines.push(`<b>MEALS</b>`);
+      foodResult.items.forEach((m, i) => {
+        const time = m.date.slice(11, 16); // "HH:MM"
+        lines.push(
+          `${i + 1}. <b>${escapeHtml(m.meal_name)}</b> <i>${time}</i>`,
+          `   ${m.calories} kcal  |  P: ${m.protein}g  |  F: ${m.fat}g  |  C: ${m.carbs}g`
+        );
+      });
+      lines.push(``);
+    }
+
+    if (activityResult.items.length > 0) {
+      lines.push(`<b>ACTIVITIES</b>`);
+      activityResult.items.forEach((a, i) => {
+        const time = a.date.slice(11, 16);
+        lines.push(
+          `${i + 1}. <b>${escapeHtml(a.type)}</b> <i>${time}</i>`,
+          `   ${a.duration_min} min  |  ${a.calories_burned} kcal burned`
+        );
+      });
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  } catch (err) {
+    console.error("[logHandler]", err);
+    await ctx.reply(`<b>Error:</b> ${escapeHtml(err.message)}`, { parse_mode: "HTML" });
+  }
 }

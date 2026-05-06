@@ -3,7 +3,7 @@ import { config } from "./config.js";
 import { getDb } from "./pb.js";
 import { photoHandler, textHandler } from "./handlers/photo.js";
 import { cardioHandler } from "./handlers/cardio.js";
-import { statsHandler } from "./handlers/stats.js";
+import { statsHandler, logHandler } from "./handlers/stats.js";
 import { undoHandler, redoHandler } from "./handlers/undo.js";
 import { saveHandler, mealHandler, mealsListHandler, deleteMealHandler } from "./handlers/savedmeal.js";
 import { weekHandler } from "./handlers/week.js";
@@ -18,6 +18,7 @@ bot.command("start", (ctx) => {
     "<b>Calodiary online.</b>\n\nSend a food photo (with optional caption) to log a meal.\n\n" +
       "<b>Commands:</b>\n" +
       "/stats — today's summary\n" +
+      "/log — everything logged today\n" +
       "/week — 7-day summary\n" +
       "/undo — remove last logged entry  (add 'cardio' for activities)\n" +
       "/redo — restore the last undone entry\n" +
@@ -38,6 +39,7 @@ bot.on("message:photo", photoHandler);
 // Commands — registered before message:text so they are not intercepted
 bot.command("cardio", cardioHandler);
 bot.command("stats", statsHandler);
+bot.command("log", logHandler);
 bot.command("undo", undoHandler);
 bot.command("redo", redoHandler);
 bot.command("save", saveHandler);
@@ -63,6 +65,7 @@ getDb()
     await bot.api.setMyCommands([
       { command: "start",  description: "Show help and available commands" },
       { command: "stats",  description: "Today's calorie & macro summary" },
+      { command: "log",    description: "List everything logged today (meals & activities)" },
       { command: "undo",   description: "Remove last meal (/undo) or cardio (/undo cardio)" },
       { command: "redo",   description: "Restore the last entry removed by /undo" },
       { command: "save",   description: "Save last meal as a shortcut  /save <name>" },
