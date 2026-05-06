@@ -80,8 +80,9 @@ function buildProgressBar(current, max) {
 }
 
 function toOsloTime(pbDate) {
-  // PocketBase stores dates as "YYYY-MM-DD HH:MM:SS" in UTC
-  const utc = new Date(pbDate.replace(" ", "T") + "Z");
+  // PocketBase returns dates as "YYYY-MM-DD HH:MM:SS.mmmZ" (already UTC)
+  const normalized = pbDate.replace(" ", "T");
+  const utc = new Date(normalized.endsWith("Z") ? normalized : normalized + "Z");
   return utc.toLocaleTimeString("no-NO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Oslo" });
 }
 
