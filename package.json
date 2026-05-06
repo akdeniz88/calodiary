@@ -1,0 +1,20 @@
+{
+  "name": "calodiary",
+  "version": "1.0.0",
+  "description": "Telegram nutrition + cardio tracking bot with PocketBase and Gemini",
+  "main": "src/bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/bot.js",
+    "migrate": "node setup/migrate.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "grammy": "^1.31.0",
+    "node-fetch": "^3.3.2",
+    "pocketbase": "^0.26.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
