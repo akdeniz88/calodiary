@@ -53,6 +53,8 @@ CRITIQUE RULES — write 3–5 named sections, each a short sharp paragraph:
 
 ESTIMATION RULES:
 - When the user specifies a weight (e.g. "100g chicken"), use that weight exactly for your calculation.
+- For any food visible in the image that the user did NOT specify a weight for, estimate the weight from the photo and include it as a separate item. Never skip a visible ingredient.
+- Always estimate and include vegetables, garnishes, sauces, oils, dressings, and sides even if the user didn't mention them.
 - Estimate based on visual portion size and typical recipes. Be realistic, not optimistic.
 - When uncertain, round calories UP and protein DOWN (conservative for a cut).
 - If a caption is provided, use it to refine the estimate.
