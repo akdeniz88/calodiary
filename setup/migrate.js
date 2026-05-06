@@ -57,10 +57,10 @@ const COLLECTIONS = [
     fields: [
       { name: "name", type: "text", required: true },
       { name: "meal_name", type: "text", required: true },
-      { name: "calories", type: "number", required: true },
-      { name: "protein", type: "number", required: true },
-      { name: "fat", type: "number", required: true },
-      { name: "carbs", type: "number", required: true },
+      { name: "calories", type: "number", required: false },
+      { name: "protein", type: "number", required: false },
+      { name: "fat", type: "number", required: false },
+      { name: "carbs", type: "number", required: false },
     ],
   },
   {
@@ -97,7 +97,38 @@ async function main() {
     console.log(`  ✓ Created collection "${def.name}"`);
   }
 
+  // Patch existing food_logs: remove required from numeric macro fields so that
+  // values like 0g fat or 0g protein are accepted (e.g. tea, fruit).
+  await patchNumericFields(pb, existing);
+
   console.log("Migration complete.");
+}
+
+async function patchNumericFields(pb, existingCollections) {
+  const MACRO_FIELDS = ["calories", "protein", "fat", "carbs"];
+  const targets = ["food_logs", "saved_meals"];
+
+  for (const col of existingCollections) {
+    if (!targets.includes(col.name)) continue;
+
+    const updatedFields = col.fields.map((f) => {
+      if (MACRO_FIELDS.includes(f.name) && f.required) {
+        return { ...f, required: false };
+      }
+      return f;
+    });
+
+    const changed = col.fields.some(
+      (f) => MACRO_FIELDS.includes(f.name) && f.required
+    );
+
+    if (changed) {
+      await pb.collections.update(col.id, { fields: updatedFields });
+      console.log(`  ✓ Patched "${col.name}" — removed required from macro fields`);
+    } else {
+      console.log(`  ⏭ "${col.name}" macro fields already not required — skipped.`);
+    }
+  }
 }
 
 main().catch((err) => {
