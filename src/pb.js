@@ -12,7 +12,7 @@ let authenticated = false;
  * @returns {Promise<PocketBase>}
  */
 export async function getDb() {
-  if (!authenticated) {
+  if (!authenticated || !pb.authStore.isValid) {
     await pb.collection("_superusers").authWithPassword(
       config.pocketbaseAdminEmail,
       config.pocketbaseAdminPassword
