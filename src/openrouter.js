@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { config } from "./config.js";
+import { getActiveModel } from "./handlers/model.js";
 
 /**
  * Sends a food image + optional caption to OpenRouter (Gemini Flash) for analysis.
@@ -33,7 +34,7 @@ export async function analyzeFood(imageBase64, mimeType, systemPrompt, caption =
   }
 
   const body = {
-    model: config.openrouterModel,
+    model: getActiveModel(),
     messages: [
       {
         role: "system",
@@ -146,7 +147,7 @@ Rules:
     `Correction: "${instruction}"`;
 
   const body = {
-    model: config.openrouterModel,
+    model: getActiveModel(),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },

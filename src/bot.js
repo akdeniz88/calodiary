@@ -9,6 +9,7 @@ import { saveHandler, mealHandler, mealsListHandler, deleteMealHandler } from ".
 import { weekHandler } from "./handlers/week.js";
 import { weightHandler } from "./handlers/weight.js";
 import { editCommandHandler, editCallbackHandler } from "./handlers/edit.js";
+import { modelCommandHandler, modelCallbackHandler } from "./handlers/model.js";
 
 const bot = new Bot(config.telegramToken);
 
@@ -29,6 +30,7 @@ bot.command("start", (ctx) => {
       "/delete &lt;name&gt; — remove a saved meal shortcut\n" +
       "/weight &lt;kg&gt; — log body weight\n" +
       "/edit — correct macros on the last logged meal\n" +
+      "/model — switch AI model\n" +
       "/cardio treadmill &lt;min&gt; &lt;km/h&gt; &lt;grade%&gt;\n" +
       "/cardio other &lt;min&gt; &lt;kcal_burned&gt;",
     { parse_mode: "HTML" }
@@ -51,9 +53,13 @@ bot.command("delete", deleteMealHandler);
 bot.command("week", weekHandler);
 bot.command("weight", weightHandler);
 bot.command("edit", editCommandHandler);
+bot.command("model", modelCommandHandler);
 
 // Inline button — edit macros of the last logged meal
 bot.callbackQuery("edit_last", editCallbackHandler);
+
+// Inline button — switch AI model
+bot.callbackQuery(/^set_model:/, modelCallbackHandler);
 
 // Plain text messages → text-only food log pipeline (commands already handled above)
 bot.on("message:text", textHandler);
@@ -81,6 +87,7 @@ getDb()
       { command: "week",   description: "7-day calorie & protein summary" },
       { command: "weight", description: "Log body weight  /weight <kg>  or  /weight to check current" },
       { command: "edit",   description: "Edit macros of the last logged meal" },
+      { command: "model",  description: "Switch the active AI model" },
       { command: "cardio", description: "Log cardio  /cardio treadmill <min> <km/h> <grade%>" },
     ]);
     console.log("Telegram command menu registered.");
