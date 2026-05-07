@@ -1,10 +1,12 @@
 import fetch from "node-fetch";
+import { InlineKeyboard } from "grammy";
 import { config } from "../config.js";
 import { getDb } from "../pb.js";
 import { analyzeFood } from "../openrouter.js";
 import { buildSystemPrompt } from "../prompts/system.js";
 import { getDailyTotals } from "../math/daily.js";
 import { formatDailyStatus } from "./stats.js";
+import { setLastLoggedRecord, hasPendingEdit, handlePendingEdit } from "./edit.js";
 
 /**
  * Handles plain text messages as food descriptions.
@@ -14,6 +16,9 @@ export async function textHandler(ctx) {
 
   const text = ctx.message.text?.trim();
   if (!text || text.startsWith("/")) return;
+
+  // If the user is in an active edit session, route this message there.
+  if (await handlePendingEdit(ctx)) return;
 
   const processingMsg = await ctx.reply("Analyzing...");
 
@@ -30,7 +35,7 @@ export async function textHandler(ctx) {
     const nutrition = await analyzeFood(null, null, systemPrompt, text);
 
     const db = await getDb();
-    await db.collection("food_logs").create({
+    const record = await db.collection("food_logs").create({
       meal_name: nutrition.meal_name,
       calories: Math.round(nutrition.calories),
       protein: Math.round(nutrition.protein),
@@ -39,6 +44,7 @@ export async function textHandler(ctx) {
       raw_input: text,
       date: new Date().toISOString().replace("T", " ").slice(0, 19),
     });
+    setLastLoggedRecord(record);
 
     const afterTotals = await getDailyTotals(today);
     const mealDensity =
@@ -47,8 +53,9 @@ export async function textHandler(ctx) {
         : 0;
 
     const reply = buildMealReply(nutrition, mealDensity, afterTotals);
+    const editKeyboard = new InlineKeyboard().text("✏️ Edit macros", "edit_last");
     await ctx.api.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
-    await ctx.reply(reply, { parse_mode: "HTML" });
+    await ctx.reply(reply, { parse_mode: "HTML", reply_markup: editKeyboard });
   } catch (err) {
     console.error("[textHandler]", err);
     await ctx.api.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
@@ -116,7 +123,8 @@ export async function photoHandler(ctx) {
     const imgFilename = `meal_${Date.now()}.${ext}`;
     formData.set("image", new File([imgBlob], imgFilename, { type: mimeType }));
 
-    await db.collection("food_logs").create(formData);
+    const record = await db.collection("food_logs").create(formData);
+    setLastLoggedRecord(record);
 
     // 6. Re-query totals (now includes this meal)
     const afterTotals = await getDailyTotals(today);
@@ -129,9 +137,10 @@ export async function photoHandler(ctx) {
 
     // 8. Build reply
     const reply = buildMealReply(nutrition, mealDensity, afterTotals);
+    const editKeyboard = new InlineKeyboard().text("✏️ Edit macros", "edit_last");
 
     await ctx.api.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});
-    await ctx.reply(reply, { parse_mode: "HTML" });
+    await ctx.reply(reply, { parse_mode: "HTML", reply_markup: editKeyboard });
   } catch (err) {
     console.error("[photoHandler]", err);
     await ctx.api.deleteMessage(ctx.chat.id, processingMsg.message_id).catch(() => {});

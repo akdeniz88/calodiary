@@ -8,6 +8,7 @@ import { undoHandler, redoHandler } from "./handlers/undo.js";
 import { saveHandler, mealHandler, mealsListHandler, deleteMealHandler } from "./handlers/savedmeal.js";
 import { weekHandler } from "./handlers/week.js";
 import { weightHandler } from "./handlers/weight.js";
+import { editCommandHandler, editCallbackHandler } from "./handlers/edit.js";
 
 const bot = new Bot(config.telegramToken);
 
@@ -27,6 +28,7 @@ bot.command("start", (ctx) => {
       "/meals — list all saved meals\n" +
       "/delete &lt;name&gt; — remove a saved meal shortcut\n" +
       "/weight &lt;kg&gt; — log body weight\n" +
+      "/edit — correct macros on the last logged meal\n" +
       "/cardio treadmill &lt;min&gt; &lt;km/h&gt; &lt;grade%&gt;\n" +
       "/cardio other &lt;min&gt; &lt;kcal_burned&gt;",
     { parse_mode: "HTML" }
@@ -48,6 +50,10 @@ bot.command("meals", mealsListHandler);
 bot.command("delete", deleteMealHandler);
 bot.command("week", weekHandler);
 bot.command("weight", weightHandler);
+bot.command("edit", editCommandHandler);
+
+// Inline button — edit macros of the last logged meal
+bot.callbackQuery("edit_last", editCallbackHandler);
 
 // Plain text messages → text-only food log pipeline (commands already handled above)
 bot.on("message:text", textHandler);
@@ -74,6 +80,7 @@ getDb()
       { command: "delete", description: "Remove a saved meal shortcut  /delete <name>" },
       { command: "week",   description: "7-day calorie & protein summary" },
       { command: "weight", description: "Log body weight  /weight <kg>  or  /weight to check current" },
+      { command: "edit",   description: "Edit macros of the last logged meal" },
       { command: "cardio", description: "Log cardio  /cardio treadmill <min> <km/h> <grade%>" },
     ]);
     console.log("Telegram command menu registered.");

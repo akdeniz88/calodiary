@@ -117,3 +117,92 @@ export async function analyzeFood(imageBase64, mimeType, systemPrompt, caption =
     critique: String(parsed.critique),
   };
 }
+
+/**
+ * Applies a natural-language correction to an existing meal's macro values.
+ *
+ * @param {{ meal_name: string, calories: number, protein: number, fat: number, carbs: number }} current
+ * @param {string} instruction  - e.g. "protein should be 35g" or "set calories to 420 and fat to 12"
+ * @returns {Promise<{ meal_name: string, calories: number, protein: number, fat: number, carbs: number }>}
+ */
+export async function parseEditInstruction(current, instruction) {
+  const systemPrompt = `You are a nutrition data editor. Apply the user's correction to the current meal macro values.
+Return ONLY a single minified JSON object. No markdown, no prose, no code fences.
+
+RESPONSE SCHEMA (all fields required, all numbers as non-negative integers):
+{"meal_name": string, "calories": number, "protein": number, "fat": number, "carbs": number}
+
+Rules:
+- Apply the correction to the affected fields only; keep all other values unchanged.
+- meal_name: only change if the user explicitly renames the meal, otherwise preserve it exactly.
+- All numeric values must be non-negative integers.`;
+
+  const userMessage =
+    `Current meal: "${current.meal_name}"\n` +
+    `Calories: ${current.calories} kcal\n` +
+    `Protein: ${current.protein}g\n` +
+    `Fat: ${current.fat}g\n` +
+    `Carbs: ${current.carbs}g\n\n` +
+    `Correction: "${instruction}"`;
+
+  const body = {
+    model: config.openrouterModel,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    temperature: 0.1,
+  };
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.openrouterApiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://github.com/calodiary",
+      "X-Title": "Calodiary",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenRouter API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const raw = data?.choices?.[0]?.message?.content;
+
+  if (!raw) throw new Error("OpenRouter returned empty content");
+
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error(`Model returned non-JSON edit response: ${cleaned.slice(0, 200)}`);
+  }
+
+  const required = ["meal_name", "calories", "protein", "fat", "carbs"];
+  for (const field of required) {
+    if (parsed[field] === undefined) throw new Error(`Edit response missing field: "${field}"`);
+  }
+
+  function toInt(val) {
+    const n = Math.round(parseFloat(String(val).replace(/[^0-9.\-]/g, "")));
+    return isNaN(n) || n < 0 ? 0 : n;
+  }
+
+  return {
+    meal_name: String(parsed.meal_name),
+    calories: toInt(parsed.calories),
+    protein: toInt(parsed.protein),
+    fat: toInt(parsed.fat),
+    carbs: toInt(parsed.carbs),
+  };
+}
